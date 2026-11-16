@@ -1,0 +1,10 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.streamlit/secrets.toml
+# user accounts and uploaded research data must never be committed
+data/users.db
+data/users/
+data/settings.json
