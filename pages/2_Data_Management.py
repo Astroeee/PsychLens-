@@ -9,7 +9,7 @@ from components.layout import page_header
 from components.tables import show_df, show_plot
 from modules import data_processing as dp
 from modules.sample_data import SAMPLE_DICTIONARY
-from modules.state import add_dataset, load_sample, log_activity, remove_dataset
+from modules.state import add_dataset, discard_cleaned, load_sample, log_activity, remove_dataset, replace_original, set_cleaned
 from modules.visualization import _theme
 
 page_header("Data Management", "Upload, inspect, and clean your datasets")
@@ -204,7 +204,7 @@ with tab_clean:
             st.markdown(f"- {line}")
         confirm = st.checkbox("I confirm I want to create a cleaned copy (the original stays unchanged)", key="cl_confirm")
         if st.button("Create cleaned copy", type="primary", disabled=not confirm, key="cl_apply"):
-            ss.cleaned[active] = preview
+            set_cleaned(active, preview)
             log_activity("Data cleaned", active, "; ".join(log[:-1])[:140] or "No changes")
             st.success("Cleaned copy created. Analysis pages now use it by default (toggle “Use cleaned version”).")
             st.rerun()
@@ -217,10 +217,10 @@ with tab_clean:
             b.download_button("Download cleaned Excel", dp.to_excel_bytes(d), f"{active}_cleaned.xlsx",
                               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_xlsx")
             if c.button("Discard cleaned copy", key="cl_discard"):
-                ss.cleaned.pop(active, None)
+                discard_cleaned(active)
                 st.rerun()
             replace = e.checkbox("Replace original", key="cl_replace_chk", help="Overwrites the stored original with the cleaned copy.")
             if replace and e.button("Confirm replace", key="cl_replace"):
-                ss.datasets[active] = ss.cleaned.pop(active)
+                replace_original(active)
                 log_activity("Original replaced", active, "User replaced the original with the cleaned copy")
                 st.rerun()

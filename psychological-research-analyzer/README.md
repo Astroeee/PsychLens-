@@ -21,14 +21,17 @@ research design before running a test, and it never writes conclusions for you.
 
 ## Screenshots
 
-| Data Management | Reliability Analysis |
+| Data Management | Test Wizard | Answer a few questions about your design and outcome; get a recommended test with the reasoning, assumptions, effect size, APA format and alternatives (optionally informed by your own data) |
+| Reliability Analysis |
 |---|---|
 | ![Data Management](assets/screenshots/02-data-management.png) | ![Reliability](assets/screenshots/03-reliability.png) |
 
+| Regression | Linear, hierarchical (ΔR²) and binary logistic regression: coefficients, standardized β, odds ratios, VIF, diagnostics, ROC, classification |
 | Hypothesis Testing | Correlation Heatmap |
 |---|---|
 | ![Hypothesis Testing](assets/screenshots/04-hypothesis-testing.png) | ![Correlation](assets/screenshots/05-correlation.png) |
 
+| Power Analysis | Sample size, power or detectable effect size for t-tests, ANOVA, correlation, chi-square and regression, with a power curve and proposal-ready wording |
 | Data Visualization | APA-style Report |
 |---|---|
 | ![Visualization](assets/screenshots/06-visualization.png) | ![Report](assets/screenshots/07-report.png) |

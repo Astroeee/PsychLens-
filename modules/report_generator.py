@@ -111,6 +111,43 @@ def build_report(meta: dict, overview: dict, entries: list[dict], notes: str = "
             blocks.append(table(fmt_df(e["pairs"], 3), f"{n}|{ttl}", e["note"]))
         sections.append({"heading": "Correlation Analysis", "blocks": blocks})
 
+    if of_kind("regression"):
+        blocks = []
+        for e in of_kind("regression"):
+            blocks.append({"type": "subheading", "text": e["title"]})
+            blocks.append(text(f"Model summary: {e['apa']}."))
+            n, ttl = tcap(f"Regression Coefficients – {e['title']}")
+            blocks.append(table(fmt_df(e["coef"], 3), f"{n}|{ttl}", "B = unstandardized coefficient; β = standardized coefficient; CI = confidence interval."))
+            for name, t in e["extra_tables"].items():
+                n, ttl = tcap(f"{name} – {e['title']}")
+                blocks.append(table(fmt_df(t, 3), f"{n}|{ttl}"))
+            blocks.append(text(e["interpretation"]))
+            blocks += [text("Warning: " + w) for w in e["warnings"]]
+        sections.append({"heading": "Regression Analysis", "blocks": blocks})
+
+    if of_kind("factor"):
+        blocks = []
+        for e in of_kind("factor"):
+            blocks.append({"type": "subheading", "text": f"Exploratory factor analysis: {e['title']}"})
+            blocks.append(text(f"{e['apa']}."))
+            n, ttl = tcap(f"Factor Loadings – {e['title']}")
+            blocks.append(table(fmt_df(e["loadings"], 2), f"{n}|{ttl}", "Rotated pattern matrix (unrotated if no rotation was used)."))
+            for name, t in e["tables"].items():
+                n, ttl = tcap(f"{name} – {e['title']}")
+                blocks.append(table(fmt_df(t, 2), f"{n}|{ttl}"))
+            blocks.append(text(e["interpretation"]))
+            blocks += [text("Warning: " + w) for w in e["warnings"]]
+        sections.append({"heading": "Factor Analysis", "blocks": blocks})
+
+    if of_kind("power"):
+        blocks = []
+        for e in of_kind("power"):
+            blocks.append(text(e["sentence"]))
+            n, ttl = tcap(f"Power Analysis – {e['title']}")
+            blocks.append(table(e["table"], f"{n}|{ttl}"))
+            blocks += [text("Note: " + w) for w in e["warnings"]]
+        sections.append({"heading": "Power Analysis (Sample-Size Planning)", "blocks": blocks})
+
     if of_kind("test"):
         blocks = []
         for e in of_kind("test"):
@@ -279,6 +316,12 @@ def entries_to_csv_files(entries: list[dict]) -> dict[str, bytes]:
     if rel: put("reliability_item_statistics.csv", pd.concat(rel, ignore_index=True))
     cor = [e["pairs"].assign(Analysis=e["title"]) for e in entries if e["kind"] == "correlation"]
     if cor: put("correlations.csv", pd.concat(cor, ignore_index=True))
+    reg = [e["coef"].assign(Model=e["title"]) for e in entries if e["kind"] == "regression"]
+    if reg: put("regression_coefficients.csv", pd.concat(reg, ignore_index=True))
+    fac = [e["loadings"].assign(Analysis=e["title"]) for e in entries if e["kind"] == "factor"]
+    if fac: put("factor_loadings.csv", pd.concat(fac, ignore_index=True))
+    pw = [e["table"].assign(Analysis=e["title"]) for e in entries if e["kind"] == "power"]
+    if pw: put("power_analysis.csv", pd.concat(pw, ignore_index=True))
     tests = [e["result"].summary_row() for e in entries if e["kind"] == "test"]
     if tests: put("hypothesis_tests_summary.csv", pd.DataFrame(tests))
     return files

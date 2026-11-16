@@ -1,42 +1,35 @@
-"""Settings: researcher profile, statistical defaults, session data."""
+"""Settings: statistical defaults and session data tools (profile lives on the Account page)."""
 import importlib.metadata as md
 
+import pandas as pd
 import streamlit as st
 
 import config
-from components.cards import callout, card_title
+from components.cards import card_title
 from components.layout import page_header
 from components.tables import show_df
-from modules.state import load_sample, log_activity, save_settings
-
-import pandas as pd
+from modules.state import is_guest, load_sample, log_activity, remove_dataset, save_settings
 
 page_header("Settings", "Configure the application")
 ss = st.session_state
 s = ss.settings
 
 with st.container(border=True):
-    card_title("Researcher profile", "Used in report headers")
-    a, b = st.columns(2)
-    name = a.text_input("Name", value=s["researcher_name"], key="set_name")
-    inst = b.text_input("Institution", value=s["institution"], key="set_inst")
-
-with st.container(border=True):
-    card_title("Statistical defaults", "Applied across all analysis pages")
+    card_title("Statistical defaults", "Applied across all analysis pages" + (" · guest settings are not saved" if is_guest() else " · saved to your account"))
     a, b, c = st.columns(3)
-    alpha = a.selectbox("Significance level (α)", [0.10, 0.05, 0.01, 0.001], index=[0.10, 0.05, 0.01, 0.001].index(s["alpha"]) if s["alpha"] in [0.10, 0.05, 0.01, 0.001] else 1, key="set_alpha")
-    conf = b.selectbox("Confidence level", [0.90, 0.95, 0.99], index=[0.90, 0.95, 0.99].index(s["confidence"]) if s["confidence"] in [0.90, 0.95, 0.99] else 1,
+    A, C, D = [0.10, 0.05, 0.01, 0.001], [0.90, 0.95, 0.99], [1, 2, 3, 4]
+    alpha = a.selectbox("Significance level (α)", A, index=A.index(s["alpha"]) if s["alpha"] in A else 1, key="set_alpha")
+    conf = b.selectbox("Confidence level", C, index=C.index(s["confidence"]) if s["confidence"] in C else 1,
                        format_func=lambda x: f"{x * 100:.0f}%", key="set_conf")
-    dec = c.selectbox("Decimal places in tables", [1, 2, 3, 4], index=[1, 2, 3, 4].index(s["decimals"]) if s["decimals"] in [1, 2, 3, 4] else 1, key="set_dec")
+    dec = c.selectbox("Decimal places in tables", D, index=D.index(s["decimals"]) if s["decimals"] in D else 1, key="set_dec")
     if st.button("Save settings", type="primary", key="set_save"):
-        ss.settings = {"researcher_name": name.strip() or "Researcher", "institution": inst.strip(),
-                       "alpha": alpha, "confidence": conf, "decimals": dec}
+        ss.settings.update(alpha=alpha, confidence=conf, decimals=dec)
         save_settings()
         st.success("Settings saved.")
         st.rerun()
 
 with st.container(border=True):
-    card_title("Session data", "Data lives in memory for this browser session only")
+    card_title("Session data", "Removing datasets here also removes them from your account storage")
     c1, c2, c3, c4 = st.columns(4)
     if c1.button("Load sample dataset", key="set_sample"):
         load_sample(); st.success("Sample dataset loaded.")
@@ -46,7 +39,9 @@ with st.container(border=True):
         ss.activity_log = []; st.success("Activity log cleared.")
     sure = c4.checkbox("Confirm", key="set_confirm")
     if c4.button("Remove all datasets", disabled=not sure, key="set_clr_data"):
-        ss.datasets, ss.cleaned, ss.results, ss.active_dataset = {}, {}, [], None
+        for n in list(ss.datasets):
+            remove_dataset(n)
+        ss.results = []
         log_activity("All datasets removed"); st.success("All datasets removed.")
     if ss.activity_log:
         log = pd.DataFrame(ss.activity_log)

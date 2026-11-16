@@ -146,6 +146,7 @@ def save_result(kind: str, title: str, dataset: str, **payload) -> int:
     st.session_state.results.append({"id": rid, "kind": kind, "title": title, "dataset": dataset,
                                      "time": datetime.now(), **payload})
     labels = {"descriptives": "Descriptive statistics", "reliability": "Reliability analysis",
-              "correlation": "Correlation analysis", "test": "Hypothesis test", "chart": "Chart"}
+              "correlation": "Correlation analysis", "test": "Hypothesis test", "chart": "Chart",
+              "regression": "Regression", "factor": "Factor analysis", "power": "Power analysis"}
     log_activity(f"{labels.get(kind, kind)} saved", dataset, title)
     return rid

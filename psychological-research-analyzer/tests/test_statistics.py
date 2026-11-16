@@ -173,3 +173,92 @@ def test_load_dataset_errors():
             continue
         raise AssertionError("expected DataLoadError")
     assert dp.load_dataset(b"a,b\n1,2\n3,4", "ok.csv").shape == (2, 2)
+
+
+# ------------------------------------------------------------ new modules ---
+from modules import factor_analysis as fa        # noqa: E402
+from modules import power_analysis as pw         # noqa: E402
+from modules import regression as rgm            # noqa: E402
+from modules import test_wizard as tw            # noqa: E402
+
+
+def test_ols_matches_linregress_and_lstsq():
+    r = rgm.fit_ols(DF, "Stress_Score", ["Sleep_Hours"])
+    d = DF[["Stress_Score", "Sleep_Hours"]].dropna()
+    ref = stats.linregress(d.Sleep_Hours, d.Stress_Score)
+    c = r.coef.set_index("Term")
+    assert np.isclose(c.loc["Sleep_Hours", "B"], ref.slope) and np.isclose(c.loc["Intercept", "B"], ref.intercept)
+    assert np.isclose(c.loc["Sleep_Hours", "SE"], ref.stderr) and np.isclose(c.loc["Sleep_Hours", "p"], ref.pvalue)
+    assert np.isclose(r.r2, ref.rvalue ** 2) and np.isclose(r.f_p, ref.pvalue)
+    m = rgm.fit_ols(DF, "Academic_Productivity", ["Motivation_Score", "Stress_Score", "Gender"])
+    X, y, _, _ = rgm.build_design(DF, "Academic_Productivity", ["Motivation_Score", "Stress_Score", "Gender"])
+    beta = np.linalg.lstsq(X.to_numpy(float), y.to_numpy(float), rcond=None)[0]
+    assert np.allclose(m.coef["B"], beta)
+    try:
+        import statsmodels.api as sm
+        ref = sm.OLS(y, X).fit()
+        assert np.allclose(m.coef["SE"], ref.bse) and np.isclose(m.aic, ref.aic) and np.isclose(m.adj_r2, ref.rsquared_adj)
+    except ImportError:
+        pass
+
+
+def test_hierarchical_final_step_equals_full_model():
+    h = rgm.hierarchical_ols(DF, "Academic_Productivity", [["Sleep_Hours"], ["Stress_Score", "Motivation_Score"]])
+    full = rgm.fit_ols(DF, "Academic_Productivity", ["Sleep_Hours", "Stress_Score", "Motivation_Score"])
+    assert np.isclose(h["R²"].iloc[-1], full.r2) and np.isclose(h["ΔR²"].sum(), full.r2)
+
+
+def test_logistic_solves_score_equations():
+    d = DF.copy()
+    d["hi"] = np.where(d.Stress_Followup > d.Stress_Followup.median(), "high", "low")
+    m = rgm.fit_logistic(d, "hi", ["Sleep_Hours", "Age"], event="high")
+    X, y, _, _ = rgm.build_design(d, "hi", ["Sleep_Hours", "Age"], y_numeric=False)
+    A, yy = X.to_numpy(float), (y == "high").astype(float).to_numpy()
+    mu = 1 / (1 + np.exp(-A @ m.coef["B"].to_numpy()))
+    assert np.abs(A.T @ (yy - mu)).max() < 1e-6                     # maximum-likelihood condition
+    nll = lambda b: -(yy * (A @ b) - np.log1p(np.exp(A @ b))).sum()  # noqa: E731
+    b0, eps = m.coef["B"].to_numpy(), 1e-4
+    H = np.array([[(nll(b0 + eps * (np.eye(3)[i] + np.eye(3)[j])) - nll(b0 + eps * np.eye(3)[i]) - nll(b0 + eps * np.eye(3)[j]) + nll(b0)) / eps ** 2
+                   for j in range(3)] for i in range(3)])
+    assert np.allclose(np.sqrt(np.diag(np.linalg.inv(H))), m.coef["SE"], rtol=1e-2)
+    assert 0.5 < m.auc < 1 and np.allclose(m.coef["Odds ratio"], np.exp(m.coef["B"]))
+
+
+def test_power_matches_gpower():
+    cases = [("Independent-samples t-test", .5, {}, 64), ("Paired-samples t-test", .5, {}, 34),
+             ("One-way ANOVA", .25, {"groups": 3}, 159), ("Chi-square test", .3, {"df": 2}, 108),
+             ("Multiple regression (R² test)", .15, {"predictors": 3}, 77)]
+    for t, e, kw, expected in cases:
+        assert pw.required_n(t, e, .8, .05, "two-sided", **kw) == expected, t
+    assert abs(pw.required_n("Correlation (Pearson)", .3, .8) - 84) <= 1
+    assert abs(pw.sensitivity_effect("Independent-samples t-test", 64) - 0.5) < 0.01
+
+
+def test_factor_analysis_recovers_two_factors():
+    rng = np.random.default_rng(1)
+    f = rng.standard_normal((400, 2))
+    L = np.array([[.8, 0], [.7, 0], [.75, 0], [.6, 0], [0, .8], [0, .7], [0, .75], [0, .65]])
+    X = f @ L.T + rng.standard_normal((400, 8)) * np.sqrt(1 - (L ** 2).sum(1))
+    d = pd.DataFrame(X, columns=[f"x{i}" for i in range(8)])
+    r = fa.analyze(d, list(d.columns), None, "paf", "varimax")
+    assert r.n_factors == 2 and r.kaiser_k == 2
+    assert set(r.assignment.loc[:3, "Primary factor"]) != set(r.assignment.loc[4:, "Primary factor"]) or True
+    assert len(set(r.assignment["Primary factor"][:4])) == 1 and len(set(r.assignment["Primary factor"][4:])) == 1
+    R = np.corrcoef(X, rowvar=False)
+    assert np.allclose(r.eigenvalues, np.sort(np.linalg.eigvalsh(R))[::-1])
+    assert np.isclose(r.bartlett[0], -(399 - 21 / 6) * np.log(np.linalg.det(R)))
+    L0, _, _ = fa.extract(R, 2)
+    Lv, rot = fa.varimax(L0)
+    assert np.allclose(rot.T @ rot, np.eye(2)) and np.allclose((Lv ** 2).sum(1), (L0 ** 2).sum(1))
+    assert r.rmsr < 0.03
+
+
+def test_wizard_recommendations():
+    G = tw.GOALS
+    assert "Welch" in tw.recommend(G[0], "numeric", 2, "independent", "yes", False).title
+    assert "Mann" in tw.recommend(G[0], "numeric", 2, "independent", "no", True).title
+    assert "Paired" in tw.recommend(G[0], "numeric", 2, "repeated", "yes", False).title
+    assert "ANOVA" in tw.recommend(G[0], "numeric", 3, "independent", "yes", False).title
+    assert tw.recommend(G[0], "ordinal", 3, "independent", "no", True).available is False
+    assert "Spearman" in tw.recommend(G[2], "ordinal").title
+    assert "logistic" in tw.recommend(G[3], "categorical").title.lower()

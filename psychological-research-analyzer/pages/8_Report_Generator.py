@@ -16,7 +16,8 @@ ss = st.session_state
 label, df = select_dataset("rep")
 
 KIND_NAMES = {"descriptives": "Descriptive statistics", "reliability": "Reliability", "correlation": "Correlation",
-              "test": "Hypothesis test", "chart": "Chart"}
+              "test": "Hypothesis test", "chart": "Chart",
+              "regression": "Regression", "factor": "Factor analysis", "power": "Power analysis"}
 saved = ss.results
 base = label.replace(" (cleaned)", "")
 
@@ -34,7 +35,7 @@ with st.container(border=True):
         include = []
     else:
         show_only = st.checkbox("Show only analyses from the selected dataset", value=True, key="rep_filter")
-        pool = [r for r in saved if not show_only or r["dataset"].replace(" (cleaned)", "") == base]
+        pool = [r for r in saved if not show_only or r["kind"] == "power" or r["dataset"].replace(" (cleaned)", "") == base]
         include = []
         for r in pool:
             c1, c2, c3 = st.columns([0.6, 5, 1])

@@ -29,10 +29,14 @@ PALETTE = ["#1D66D6", "#2E9E6B", "#7AA7EA", "#E0A030", "#8B6FD6", "#D6453D"]
 NAV_MAIN = [
     ("Dashboard", "pages/1_Dashboard.py", ":material/dashboard:"),
     ("Data Management", "pages/2_Data_Management.py", ":material/table_chart:"),
+    ("Test Wizard", "pages/11_Test_Wizard.py", ":material/alt_route:"),
     ("Descriptive Statistics", "pages/3_Descriptive_Statistics.py", ":material/functions:"),
     ("Reliability Analysis", "pages/4_Reliability_Analysis.py", ":material/verified:"),
+    ("Factor Analysis", "pages/12_Factor_Analysis.py", ":material/hub:"),
     ("Correlation Analysis", "pages/5_Correlation_Analysis.py", ":material/scatter_plot:"),
+    ("Regression", "pages/13_Regression.py", ":material/show_chart:"),
     ("Hypothesis Testing", "pages/6_Hypothesis_Testing.py", ":material/science:"),
+    ("Power Analysis", "pages/14_Power_Analysis.py", ":material/bolt:"),
     ("Data Visualization", "pages/7_Data_Visualization.py", ":material/bar_chart:"),
     ("Report Generator", "pages/8_Report_Generator.py", ":material/description:"),
 ]
